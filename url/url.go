@@ -9,16 +9,33 @@ import (
 )
 
 type URL struct {
-	Id  string
+	// An identifier generated for the Url.
+	Id string
+	// The Url to shorten.
 	Url string
 }
 
-type ShortenedParams struct {
+// Fetches an existing URL by the associated Id.
+//
+//encore:api public method=GET path=/url/:id
+func Fetch(ctx context.Context, id string) (*URL, error) {
+	u := &URL{Id: id}
+	err := db.QueryRow(ctx, `
+		SELECT original_url FROM url
+		WHERE id = $1
+	`, id).Scan(&u.Url)
+	return u, err
+}
+
+type ShortenParams struct {
+	// The Url to shorten.
 	Url string
 }
 
+// Generates an Id for the URL and saves the mapping to a database.
+//
 //encore:api public method=POST path=/url
-func Shorten(ctx context.Context, params *ShortenedParams) (*URL, error) {
+func Shorten(ctx context.Context, params *ShortenParams) (*URL, error) {
 	id, err := generateId()
 	if err != nil {
 		return nil, err
