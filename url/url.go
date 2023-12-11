@@ -4,7 +4,10 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
+	"net/http"
 
+	"encore.dev"
 	"encore.dev/beta/errs"
 	"encore.dev/storage/sqldb"
 )
@@ -18,14 +21,24 @@ type URL struct {
 
 // Fetches an existing URL by the associated Id.
 //
-//encore:api public method=GET path=/url/:id
-func Fetch(ctx context.Context, id string) (*URL, error) {
-	u := &URL{Id: id}
-	err := db.QueryRow(ctx, `
-		SELECT original_url FROM url
-		WHERE id = $1
-	`, id).Scan(&u.Url)
-	return u, err
+//encore:api public raw method=GET path=/url/:id
+func Fetch(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	id := encore.CurrentRequest().PathParams.Get("id")
+	url, err := findUrlById(req.Context(), id)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		body := errs.Error{
+			Code:    errs.NotFound,
+			Message: "No URL was found for the specified ID. Check the ID and try again.",
+		}
+		encodedBody, _ := json.Marshal(body)
+		w.Write(encodedBody)
+		return
+	}
+	// url will never be nil
+	http.Redirect(w, req, *url, http.StatusPermanentRedirect)
 }
 
 type ShortenParams struct {
