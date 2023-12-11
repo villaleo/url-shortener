@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 
+	"encore.dev/beta/errs"
 	"encore.dev/storage/sqldb"
 )
 
@@ -45,6 +46,26 @@ func Shorten(ctx context.Context, params *ShortenParams) (*URL, error) {
 	return &URL{Id: id, Url: params.Url}, nil
 }
 
+// Removes the URL from the database with the specified ID.
+//
+//encore:api public method=DELETE path=/url/:id
+func Remove(ctx context.Context, id string) error {
+	if _, err := findUrlById(ctx, id); err != nil {
+		return &errs.Error{
+			Code:    errs.NotFound,
+			Message: "No URL was found for the specified ID. Check the ID and try again.",
+		}
+	}
+	if _, err := db.Query(ctx, "DELETE FROM url WHERE id = $1", id); err != nil {
+		return &errs.Error{
+			Code:    errs.Internal,
+			Message: "Failed to remove URL.",
+			Details: errs.Details(err),
+		}
+	}
+	return nil
+}
+
 func generateId() (string, error) {
 	var data [6]byte
 	if _, err := rand.Read(data[:]); err != nil {
@@ -63,4 +84,9 @@ func insert(ctx context.Context, id, url string) error {
 		VALUES ($1, $2)
 	`, id, url)
 	return err
+}
+
+func findUrlById(ctx context.Context, id string) (url *string, err error) {
+	err = db.QueryRow(ctx, "SELECT original_url FROM url WHERE id = $1", id).Scan(&url)
+	return
 }
