@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"encore.dev"
 	"encore.dev/beta/errs"
 	"encore.dev/storage/sqldb"
 )
@@ -23,9 +22,14 @@ type URL struct {
 //
 //encore:api public raw method=GET path=/url/:id
 func Fetch(w http.ResponseWriter, req *http.Request) {
+	FetchInternal(w, req)
+}
+
+// Internal implementation for Fetch. Exposed for testing purposes.
+func FetchInternal(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	id := encore.CurrentRequest().PathParams.Get("id")
+	id := req.URL.Path[len("/url/"):]
 	url, err := findUrlById(req.Context(), id)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
